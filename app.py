@@ -10,9 +10,9 @@ import requests
 from flask import Flask, jsonify, render_template_string, request
 
 app = Flask(__name__)
-SHOPIFY_SECRET = "os.environ['SHOPIFY_SECRET']"
-USER_NAME = "os.environ['USER_NAME']"
-PASSWORD = "os.environ['PASSWORD']"
+SHOPIFY_SECRET = os.environ.get('SHOPIFY_SECRET')
+USER_NAME = os.environ.get('USER_NAME')
+PASSWORD = os.environ.get('PASSWORD')
 
 
 def verify_hmac(hmac_header, data):
