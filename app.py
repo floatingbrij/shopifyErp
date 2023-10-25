@@ -117,4 +117,4 @@ if __name__ == '__main__':
     app.logger.addHandler(handler)
     logging.basicConfig(level=logging.INFO)
 
-    app.run(host='0.0.0.0', port=81)
+    app.run()
