@@ -100,4 +100,6 @@ def receive_customer_webhook():
 def index():
     return "Shopify API"
 
+if __name__ == "__main__":
+    app.run()
 
