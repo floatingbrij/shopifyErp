@@ -2,15 +2,17 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
+from logging.handlers import RotatingFileHandler
 
 import requests
 from flask import Flask, jsonify, render_template_string, request
 
 app = Flask(__name__)
-SHOPIFY_SECRET = os.environ.get('SHOPIFY_SECRET')
-USER_NAME = os.environ.get('USER_NAME')
-PASSWORD = os.environ.get('PASSWORD')
+SHOPIFY_SECRET = os.environ['SHOPIFY_SECRET']
+USER_NAME = os.environ['USER_NAME']
+PASSWORD = os.environ['PASSWORD']
 
 
 def verify_hmac(hmac_header, data):
@@ -58,6 +60,7 @@ def process_webhook(data, data_transform_function, erp_endpoint):
     response = requests.post(erp_url, json=transformed_data, auth=(USER_NAME, PASSWORD))
     print(response.text)
     if response.status_code != 200:
+        app.logger.error('Error forwarding data to ERP. Status code: %s', response.status_code)
         raise Exception("ERP server error") 
     return True
 
@@ -66,9 +69,11 @@ def handle_webhook(webhook_type):
     request_data = request.get_data(as_text=False)
 
     if not verify_hmac(hmac_header, request_data):
+        app.logger.warning("HMAC validation failed.")
         return jsonify({'message': 'Unauthorized request'}), 401
 
     shopify_data = request.get_json()
+    app.logger.info(f'Received {webhook_type.capitalize()} Webhook: %s', json.dumps(shopify_data, indent=4))
 
     try:
         # Define the transformations and ERP endpoints based on the webhook type
@@ -84,6 +89,7 @@ def handle_webhook(webhook_type):
         process_webhook(shopify_data, data_transform_function, erp_endpoint)
         return jsonify({'message':f'{webhook_type.capitalize()} data processed successfully'}), 200
     except Exception as e:
+        app.logger.error(f'An unexpected error occurred: {e}', exc_info=True)
         return jsonify({'message': 'Internal server error'}), 500
 
 
@@ -100,6 +106,15 @@ def receive_customer_webhook():
 def index():
     return "Shopify API"
 
-if __name__ == "__main__":
-    app.run()
 
+# Main Function
+if __name__ == '__main__':
+    if SHOPIFY_SECRET is None:
+      raise ValueError("No SHOPIFY_SECRET set for Flask application")
+
+    handler = RotatingFileHandler('app.log', maxBytes=10000, backupCount=1)
+    handler.setLevel(logging.INFO)
+    app.logger.addHandler(handler)
+    logging.basicConfig(level=logging.INFO)
+
+    app.run(host='0.0.0.0', port=81)
